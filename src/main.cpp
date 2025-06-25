@@ -27,7 +27,7 @@ float historicoTemp[TAM_HISTORICO];
 int indice = 0;
 
 unsigned long ultimaLeitura = 0;
-const unsigned long intervaloLeitura = 60000;
+const unsigned long intervaloLeitura = 5000;
 
 String getHoraAtual() {
   time_t now = time(nullptr);
