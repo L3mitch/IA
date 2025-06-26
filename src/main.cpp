@@ -4,26 +4,26 @@
 #include <DHTesp.h>
 
 // Wi-Fi
-const char *ssid = "Kafei";
-const char *password = "kau15092003@CASA621";
+const char *ssid = "Teste HTTP";
+const char *password = "123teste";
 
 extern float computeIrrigationTime(float temp, float humAir, float humSoil, float hours);
 
 // IP fixo
-IPAddress local_IP(192, 168, 7, 123);
-IPAddress gateway(192, 168, 7, 1);
+IPAddress local_IP(192, 168, 79, 123);
+IPAddress gateway(192, 168, 79, 1);
 IPAddress subnet(255, 255, 255, 0);
 
 // Sensores
 #define DHT_PIN 21
-#define SOIL_PIN 15
-//#define SOIL_PIN 34
+#define SOIL_PIN 34
+// #define SOIL_PIN 34
 
 DHTesp dht;
 WebServer server(80);
 
 // Histórico
-const int TAM_HISTORICO = 7;
+const int TAM_HISTORICO = 120;
 String horarios[TAM_HISTORICO];
 float historicoUmi[TAM_HISTORICO];
 float historicoUmiAr[TAM_HISTORICO];
@@ -128,6 +128,9 @@ void setup()
   dht.setup(DHT_PIN, DHTesp::DHT22);
   analogSetPinAttenuation(SOIL_PIN, ADC_11db);
 
+  pinMode(22, OUTPUT); // Pino do relé para irrigação
+  digitalWrite(22, LOW); // Desliga a irrigação
+
   configTime(-3 * 3600, 0, "pool.ntp.org", "time.nist.gov");
 
   if (!WiFi.config(local_IP, gateway, subnet))
@@ -135,7 +138,7 @@ void setup()
     Serial.println("Falha IP fixo");
   }
 
-  //WiFi.begin(ssid, password);
+  WiFi.begin(ssid, password);
   //while (WiFi.status() != WL_CONNECTED)
   while(0)
   {
@@ -164,26 +167,26 @@ void loop()
     lerSensores();
 
     if (!irrigando)
-    {
-    float delta = (float) (millis() - ultimaIrrigacao) / 3600000.0; // horas desde a última irrigação
-    Serial.printf("Última irrigação: %.8f horas atrás\n\r", delta);
+    {                                        // Liga a irrigação
+      float delta = (float)(millis() - ultimaIrrigacao) / 3600000.0; // horas desde a última irrigação
+      Serial.printf("Última irrigação: %.8f horas atrás\n\r", delta);
 
-    delta = 24;
+      delta = 24;
 
-    float tempoIrr = computeIrrigationTime(temperatura, umidadeSolo, umidadeAr, delta);
-    if (tempoIrr > 2)
-    {
-      irrigando = true;
-      inicioIrrigacao = millis();
-      tempoIrrigacao = tempoIrr;
-      digitalWrite(22, HIGH); // Liga a irrigação
-      Serial.printf("Irrigação necessária: %.2f segundos\n\r", tempoIrr);
+      float tempoIrr = computeIrrigationTime(temperatura, umidadeSolo, umidadeAr, delta);
+      if (tempoIrr > 2)
+      {
+        irrigando = true;
+        inicioIrrigacao = millis();
+        tempoIrrigacao = tempoIrr;
+        digitalWrite(22, HIGH); // Liga a irrigação
+        Serial.printf("Irrigação necessária: %.2f segundos\n\r", tempoIrr);
+      }
+      else
+      {
+        Serial.printf("Irrigação não necessária: %.2f segundos\n\r", tempoIrr);
+      }
     }
-    else
-    {
-      Serial.printf("Irrigação não necessária: %.2f segundos\n\r", tempoIrr);
-    }
-  }
   }
 
   if (irrigando)
@@ -191,17 +194,14 @@ void loop()
     if (millis() - inicioIrrigacao >= tempoIrrigacao * 1000)
     {
       irrigando = false;
-      digitalWrite(22, LOW); // Desliga a irrigação
+      digitalWrite(22, LOW); // Liga a irrigação
       ultimaIrrigacao = millis();
       Serial.println("Irrigação concluída.");
     }
     else
     {
-      digitalWrite(22, HIGH); // Liga a irrigação
       float tempoRestante = inicioIrrigacao + tempoIrrigacao * 1000 - millis();
       Serial.printf("Irrigando... Tempo restante: %0.3f segundos\n\r", tempoRestante / 1000);
     }
   }
-
-  //server.handleClient();
 }
